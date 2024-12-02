@@ -1,0 +1,16 @@
+{
+	"name": "Kontainer Pengembangan Flutter",
+	"build": {
+		"dockerfile": "ContainerFile"
+	},
+	"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": []
+		}
+	},
+	"runArgs": [
+		"--device=/dev/kvm",
+		"--device=/dev/dri/renderD128:/dev/dri/renderD128"
+	]
+}

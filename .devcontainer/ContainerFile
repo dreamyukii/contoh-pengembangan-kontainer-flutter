@@ -1,0 +1,52 @@
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+
+ARG USER=vscode
+ENV FLUTTER_CHANNEL=
+ENV FLUTTER_VERSION=
+ENV FLUTTER_SDK_URL="https://storage.googleapis.com/flutter_infra_release/releases/{$FLUTTER_CHANNEL}/linux/flutter_linux_{$FLUTTER_VERSION}-{$FLUTTER_CHANNEL}.tar.xz"
+ENV FLUTTER_HOME=/opt/flutter-sdk
+ENV ANDROID_SDK_TOOLS_VERSION=11076708
+ENV ANDROID_PLATFORM_VERSION=
+ENV ANDROID_BUILD_TOOLS_VERSION=
+ENV ANDROID_SDK_URL="https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_VERSION}_latest.zip"
+ENV ANDROID_HOME=/opt/android-sdk-linux
+ENV ANDROID_SDK_ROOT=$ANDROID_HOME
+ENV ANDROID_EMULATOR_NAME=
+ENV PATH=$FLUTTER_HOME/flutter/bin:$PATH
+ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/cmdline-tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator
+
+USER root
+RUN apt update \
+    && apt install -y xwayland xwayland-run  \
+    openjdk-17-jdk pulseaudio qemu-kvm  \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -o flutter.tar.xz  $FLUTTER_SDK_URL \
+    && mkdir -p $FLUTTER_HOME \
+    && tar xf flutter.tar.xz -C $FLUTTER_HOME \
+    && rm flutter.tar.xz \
+    && chown -R $USER $FLUTTER_HOME 
+
+RUN curl -o android-sdk-tools.zip $ANDROID_SDK_URL \
+    && mkdir -p $ANDROID_HOME \
+    && unzip -q android-sdk-tools.zip -d $ANDROID_HOME/cmdline-tools/ \
+    && rm android-sdk-tools.zip \
+    && chown -R $USER $ANDROID_HOME
+
+COPY launch-emu.sh /usr/local/bin/launch-emu.sh
+RUN chmod +x /usr/local/bin/launch-emu.sh
+
+USER $USER
+RUN yes | sdkmanager --licenses \
+    && touch $HOME/.android/repositories.cfg \
+    && sdkmanager platform-tools \
+    && sdkmanager "platforms;android-${ANDROID_PLATFORM_VERSION}" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" \
+    && sdkmanager --install "cmdline-tools;latest" \
+    && sdkmanager emulator \
+    && sdkmanager "system-images;android-${ANDROID_PLATFORM_VERSION};google_apis_playstore;x86_64" \
+    && flutter update-packages \
+    && flutter precache \
+    && flutter emulator --create --name $ANDROID_EMULATOR_NAME \
+    && echo 'eval "$(starship init zsh)"' >> ~/.zshrc
+
